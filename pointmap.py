@@ -17,9 +17,14 @@ def generate_occupancy_grid(pts, poses, grid_size=600):
         return img
 
     xs, zs = pts[:, 0], pts[:, 2]
-    cx = (xs.min() + xs.max()) / 2
-    cz = (zs.min() + zs.max()) / 2
-    extent = max(xs.max() - xs.min(), zs.max() - zs.min(), 1.0)
+
+    # Use percentile-based extent so extreme triangulation outliers don't
+    # compress the real map into a tiny cluster of pixels.
+    x_lo, x_hi = np.percentile(xs, 1), np.percentile(xs, 99)
+    z_lo, z_hi = np.percentile(zs, 1), np.percentile(zs, 99)
+    cx = (x_lo + x_hi) / 2
+    cz = (z_lo + z_hi) / 2
+    extent = max(x_hi - x_lo, z_hi - z_lo, 1.0)
     scale = (grid_size * 0.8) / extent  # pixels per world unit
 
     # Mark occupied cells (fully vectorised)
