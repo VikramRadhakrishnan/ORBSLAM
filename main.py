@@ -16,6 +16,10 @@ W, H = 1920 // 2,  1080 // 2
 F = 450
 K = np.array([[F, 0, W // 2], [0, F, H // 2], [0, 0, 1]])
 
+# Only keep triangulated points closer than this depth (in camera frame Z).
+# Increase if the map looks too sparse; decrease if it's still too slow.
+MAX_POINT_DEPTH = 2000.0
+
 
 Kinv = np.linalg.inv(K)
 
@@ -73,8 +77,12 @@ def process_frame(img):
     # returns, A boolean array indicating which points satisfy both criteria.
     good_pts4d = (np.abs(pts4d[:, 3]) > 0.005) & (pts4d[:, 2] > 0)
 
+    # Depth of each point along the camera's optical axis (camera-frame Z).
+    # This is consistent regardless of where in the world the camera has moved.
+    cam_depths = pts4d[:, :3] @ f1.pose[2, :3] + f1.pose[2, 3]
+    good_pts4d &= cam_depths < MAX_POINT_DEPTH
+
     for i, p in enumerate(pts4d):
-        #  If the point is not good (i.e., good_pts4d[i] is False), the loop skips the current iteration and moves to the next point.
         if not good_pts4d[i]:
             continue
         pt = Point(mapp, p)
@@ -102,7 +110,7 @@ def process_frame(img):
 
 
 if __name__== "__main__":
-    cap = cv2.VideoCapture("videos/test_nyc.mp4")
+    cap = cv2.VideoCapture("videos/car.mp4")
 
     while cap.isOpened():
         ret, frame = cap.read()
