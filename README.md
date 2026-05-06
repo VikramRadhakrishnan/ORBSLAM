@@ -30,6 +30,7 @@ The script reads `videos/car.mp4` by default. While running, three windows are s
 When the video ends the map is saved automatically to `map_output/`:
 - `map_points.ply` — 3D point cloud (loadable in MeshLab, CloudCompare, Open3D, etc.)
 - `camera_poses.npy` — NumPy array of shape `(N, 4, 4)` with each camera's pose matrix
+- `occupancy_grid.png` — 1200×1200 px top-down occupancy grid image
 
 **Display a saved map:**
 
