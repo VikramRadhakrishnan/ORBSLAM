@@ -23,7 +23,7 @@ def generate_occupancy_grid(pts, poses, grid_size=600):
     # Z values are negative (camera moves in −Z as it drives forward) while
     # point Z values are positive (scene is ahead of the starting camera), so
     # a point-cloud-only centre would clip the trajectory off the top edge.
-    centers = [np.linalg.inv(p)[:3, 3] for p in poses] if len(poses) > 0 else []
+    centers = [p[:3, 3] for p in poses] if len(poses) > 0 else []
     if centers:
         cam_xs = np.array([c[0] for c in centers])
         cam_zs = np.array([c[2] for c in centers])

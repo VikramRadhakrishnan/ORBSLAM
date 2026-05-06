@@ -16,7 +16,8 @@ IRt = np.eye(4)
 def extractPose(F):
     W = np.asmatrix([[0,-1,0],[1,0,0],[0,0,1]])
     U,d,Vt = np.linalg.svd(F)
-    assert np.linalg.det(U) > 0
+    if np.linalg.det(U) < 0:
+        U *= -1
     if np.linalg.det(Vt) < 0:
         Vt *= -1
     R = np.dot(np.dot(U, W), Vt)
