@@ -18,24 +18,39 @@ def generate_occupancy_grid(pts, poses, grid_size=600):
 
     xs, zs = pts[:, 0], pts[:, 2]
 
-    # Use percentile-based extent so extreme triangulation outliers don't
-    # compress the real map into a tiny cluster of pixels.
-    x_lo, x_hi = np.percentile(xs, 1), np.percentile(xs, 99)
-    z_lo, z_hi = np.percentile(zs, 1), np.percentile(zs, 99)
+    # Compute the viewport from the union of the camera trajectory and the
+    # point cloud (2nd–98th percentile to suppress outliers).  The trajectory
+    # Z values are negative (camera moves in −Z as it drives forward) while
+    # point Z values are positive (scene is ahead of the starting camera), so
+    # a point-cloud-only centre would clip the trajectory off the top edge.
+    centers = [np.linalg.inv(p)[:3, 3] for p in poses] if len(poses) > 0 else []
+    if centers:
+        cam_xs = np.array([c[0] for c in centers])
+        cam_zs = np.array([c[2] for c in centers])
+        x_lo = min(np.percentile(xs, 2), cam_xs.min())
+        x_hi = max(np.percentile(xs, 98), cam_xs.max())
+        z_lo = min(np.percentile(zs, 2), cam_zs.min())
+        z_hi = max(np.percentile(zs, 98), cam_zs.max())
+    else:
+        x_lo, x_hi = np.percentile(xs, 1), np.percentile(xs, 99)
+        z_lo, z_hi = np.percentile(zs, 1), np.percentile(zs, 99)
+
     cx = (x_lo + x_hi) / 2
     cz = (z_lo + z_hi) / 2
     extent = max(x_hi - x_lo, z_hi - z_lo, 1.0)
     scale = (grid_size * 0.8) / extent  # pixels per world unit
 
-    # Mark occupied cells (fully vectorised)
-    px = np.clip(((xs - cx) * scale + grid_size / 2).astype(np.int32), 0, grid_size - 1)
-    pz = np.clip(((zs - cz) * scale + grid_size / 2).astype(np.int32), 0, grid_size - 1)
+    # Mark occupied cells (fully vectorised).
+    # Z is negated so that larger Z (the scene ahead of the car) maps to the
+    # top of the image — the conventional orientation for a driving map, with
+    # the vehicle path at the bottom.
+    px = np.clip(( (xs - cx) * scale + grid_size / 2).astype(np.int32), 0, grid_size - 1)
+    pz = np.clip((-(zs - cz) * scale + grid_size / 2).astype(np.int32), 0, grid_size - 1)
     img[pz, px] = [60, 60, 60]
 
-    if len(poses) > 0:
-        centers = [np.linalg.inv(p)[:3, 3] for p in poses]
-        cpx = [int(np.clip((c[0] - cx) * scale + grid_size / 2, 0, grid_size - 1)) for c in centers]
-        cpz = [int(np.clip((c[2] - cz) * scale + grid_size / 2, 0, grid_size - 1)) for c in centers]
+    if centers:
+        cpx = [int(np.clip( (c[0] - cx) * scale + grid_size / 2, 0, grid_size - 1)) for c in centers]
+        cpz = [int(np.clip(-(c[2] - cz) * scale + grid_size / 2, 0, grid_size - 1)) for c in centers]
 
         for i in range(len(centers) - 1):
             cv2.line(img, (cpx[i], cpz[i]), (cpx[i + 1], cpz[i + 1]), (200, 100, 0), 2)
