@@ -5,6 +5,44 @@ import open3d as o3d
 import os
 
 
+def generate_occupancy_grid(pts, poses, grid_size=600):
+    """Project 3D map points onto the XZ plane (bird's-eye view) and return a BGR image.
+
+    Occupied cells are dark gray. The camera trajectory is drawn in blue,
+    with a green circle at the start and a red circle at the current position.
+    """
+    img = np.full((grid_size, grid_size, 3), 240, dtype=np.uint8)
+
+    if len(pts) == 0:
+        return img
+
+    xs, zs = pts[:, 0], pts[:, 2]
+    cx = (xs.min() + xs.max()) / 2
+    cz = (zs.min() + zs.max()) / 2
+    extent = max(xs.max() - xs.min(), zs.max() - zs.min(), 1.0)
+    scale = (grid_size * 0.8) / extent  # pixels per world unit
+
+    # Mark occupied cells (fully vectorised)
+    px = np.clip(((xs - cx) * scale + grid_size / 2).astype(np.int32), 0, grid_size - 1)
+    pz = np.clip(((zs - cz) * scale + grid_size / 2).astype(np.int32), 0, grid_size - 1)
+    img[pz, px] = [60, 60, 60]
+
+    if len(poses) > 0:
+        centers = [np.linalg.inv(p)[:3, 3] for p in poses]
+        cpx = [int(np.clip((c[0] - cx) * scale + grid_size / 2, 0, grid_size - 1)) for c in centers]
+        cpz = [int(np.clip((c[2] - cz) * scale + grid_size / 2, 0, grid_size - 1)) for c in centers]
+
+        for i in range(len(centers) - 1):
+            cv2.line(img, (cpx[i], cpz[i]), (cpx[i + 1], cpz[i + 1]), (200, 100, 0), 2)
+
+        cv2.circle(img, (cpx[0],  cpz[0]),  5, (0, 180,   0), -1)  # green: start
+        cv2.circle(img, (cpx[-1], cpz[-1]), 6, (0,   0, 220), -1)  # red:   current pose
+
+    cv2.putText(img, f'{len(pts):,} pts  {len(poses)} frames',
+                (8, grid_size - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (80, 80, 80), 1)
+    return img
+
+
 class Map(object):
     def __init__(self):
         self.frames = []
@@ -46,6 +84,10 @@ class Map(object):
         self.feed_image = np.ones((img_h, img_w, 3), dtype=np.uint8) * 255
         cv2.namedWindow('Camera Feed', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('Camera Feed', img_w, img_h)
+
+        cv2.namedWindow('Occupancy Grid', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Occupancy Grid', 600, 600)
+        cv2.imshow('Occupancy Grid', np.full((600, 600, 3), 240, dtype=np.uint8))
 
     def _build_camera_lines(self, poses):
         """Pack all camera frustums and the trajectory into a single LineSet."""
@@ -98,6 +140,8 @@ class Map(object):
             self._build_camera_lines(poses)
             self.vis.add_geometry(self.cam_lines, reset_bounding_box=False)
             self.cam_lines_in_scene = True
+
+        cv2.imshow('Occupancy Grid', generate_occupancy_grid(pts, poses))
 
     def viewer_refresh(self, q):
         img_w, img_h = 480, 270

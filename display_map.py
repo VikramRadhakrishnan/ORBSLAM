@@ -1,6 +1,8 @@
 import argparse
 import numpy as np
+import cv2
 import open3d as o3d
+from pointmap import generate_occupancy_grid
 
 
 FRUSTUM_SCALE = 0.3
@@ -44,17 +46,36 @@ def main():
 
     pcd = o3d.io.read_point_cloud(f"{args.map_dir}/map_points.ply")
     poses = np.load(f"{args.map_dir}/camera_poses.npy")
+    pts = np.asarray(pcd.points)
 
-    print(f"Loaded {len(pcd.points):,} map points and {len(poses)} camera poses.")
+    print(f"Loaded {len(pts):,} map points and {len(poses)} camera poses.")
 
     cam_lines = build_camera_lineset(poses)
 
-    o3d.visualization.draw_geometries(
-        [pcd, cam_lines],
-        window_name="ORB-SLAM Map",
-        width=1280,
-        height=720,
-    )
+    # 3-D viewer (non-blocking so the occupancy grid window stays alive alongside it)
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(window_name='ORB-SLAM Map', width=1280, height=720)
+    vis.add_geometry(pcd)
+    vis.add_geometry(cam_lines)
+    opt = vis.get_render_option()
+    opt.background_color = np.array([1.0, 1.0, 1.0])
+    opt.point_size = 2.0
+
+    # 2-D occupancy grid
+    occ = generate_occupancy_grid(pts, poses)
+    cv2.namedWindow('Occupancy Grid', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('Occupancy Grid', 600, 600)
+    cv2.imshow('Occupancy Grid', occ)
+
+    while True:
+        if not vis.poll_events():
+            break
+        vis.update_renderer()
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    vis.destroy_window()
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
