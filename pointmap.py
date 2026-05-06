@@ -215,6 +215,14 @@ class Map(object):
             np.save(poses_path, poses)
             print(f"Camera poses saved: {poses_path}  ({len(poses)} frames)")
 
+        if self.points and self.frames:
+            pts = np.array([p.pt for p in self.points])
+            poses = np.array([f.pose for f in self.frames])
+            occ = generate_occupancy_grid(pts, poses, grid_size=1200)
+            occ_path = os.path.join(output_dir, "occupancy_grid.png")
+            cv2.imwrite(occ_path, occ)
+            print(f"Occupancy grid saved: {occ_path}")
+
 
 class Point(object):
     # A Point is a 3-D point in the world
