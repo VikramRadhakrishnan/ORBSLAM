@@ -116,6 +116,7 @@ if __name__== "__main__":
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     
-    # Release the capture and close any OpenCV windows
     cap.release()
     cv2.destroyAllWindows()
+    mapp.save_map()
+    mapp.stop_viewer()
