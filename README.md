@@ -1,62 +1,65 @@
-### Implementation of Monocular Visual SLAM in Python:
+## Monocular Visual SLAM in Python
 
+A Python implementation of ORB-SLAM with real-time 3D visualization powered by Open3D.
 
-## Setup pangolin for python:
+---
 
-#### Install pangolin python:
-The [original library](https://github.com/stevenlovegrove/Pangolin) is written in c++, but there is [python binding](https://github.com/uoip/pangolin) available. 
+## Dependencies
 
-- **Install dependency:** For Ubuntu/Debian execute the below commands to install library dependencies,   
-
-```
-sudo apt-get install libglew-dev
-sudo apt-get install cmake
-sudo apt-get install ffmpeg libavcodec-dev libavutil-dev libavformat-dev libswscale-dev
-sudo apt-get install libdc1394-22-dev libraw1394-dev
-sudo apt-get install libjpeg-dev libpng-dev libtiff5-dev libopenexr-dev
-```
-
-- Don't need to follow the [Very Optional Dependencies](https://github.com/uoip/pangolin?tab=readme-ov-file#very-optional-dependencies) from the repository.
-
-- **Install the Library:** Execute the below commands to install *pangolin*,
-```
-git clone https://github.com/uoip/pangolin.git
-cd pangolin
-mkdir build
-cd build
-cmake ..
-make -j8
-cd ..
-python setup.py install
-```
-
-In the `make -j8` you might get some error, just follow the comment mentioned in this [github issue](https://github.com/uoip/pangolin/issues/33#issuecomment-717655495). Running the `python setup.py install` might throw an silly error, use this [comment](https://github.com/uoip/pangolin/issues/20#issuecomment-498211997) from the exact issue to solve this. 
-
-- Other dependencies are pip installable.
-
- 
-## How to run?
+Install Python dependencies via pip:
 
 ```bash
-python main.py
+pip install opencv-python numpy open3d scikit-image g2o-python
 ```
 
-## Code structure:
+---
+
+## How to run
+
+**Run SLAM on a video:**
+
 ```bash
-├── display.py
-├── extractor.py
-├── pointmap.py
-├── main.py
-├── notebooks
-│   ├── bundle_adjustment.ipynb
-│   ├── mapping.ipynb
-│   └── SLAM_pipeline_step_by_step.ipynb
-
+python3 main.py
 ```
 
-In the notebook section we have shown how to run all the components of a monocular slam,
-- `SLAM_pipeline_step_by_step.ipynb` Describes the entire pipeline
-- `mapping.ipynb` is another resource for mapping [source](https://github.com/SiddhantNadkarni/Parallel_SFM)
--  `bundle_adjustment.ipynb` another great resource to understand g2o and bundle adjustment. [source](https://github.com/maxcrous/multiview_notebooks)
+The script reads `videos/car.mp4` by default. While running, two windows are shown:
+- **ORB-SLAM Map** — interactive 3D view of the reconstructed point cloud, camera frustums (green), and trajectory (blue)
+- **Camera Feed** — current video frame with tracked feature points
 
-1st notebook uses the kitti dataset (grayscale, 22 GB), [download it from here](https://www.cvlibs.net/datasets/kitti/eval_odometry.php).
+When the video ends the map is saved automatically to `map_output/`:
+- `map_points.ply` — 3D point cloud (loadable in MeshLab, CloudCompare, Open3D, etc.)
+- `camera_poses.npy` — NumPy array of shape `(N, 4, 4)` with each camera's pose matrix
+
+**Display a saved map:**
+
+```bash
+python3 display_map.py                      # loads map_output/ by default
+python3 display_map.py --map-dir <path>     # load from a custom directory
+```
+
+Mouse controls in both 3D windows: left-drag to rotate, scroll to zoom, ctrl+drag to pan.
+
+---
+
+## Code structure
+
+```
+├── main.py           # Entry point: reads video, runs SLAM pipeline, saves map
+├── extractor.py      # ORB feature extraction, matching, and pose estimation
+├── pointmap.py       # Map class: 3D viewer (Open3D), point/frame management, map save
+├── display_map.py    # Standalone script to visualize a previously saved map
+├── display.py        # 2D SDL2 display (unused, kept for reference)
+├── utils.py          # Calibration file parsing helpers
+└── notebooks/
+    ├── SLAM_pipeline_step_by_step.ipynb   # Full pipeline walkthrough
+    ├── mapping.ipynb                      # Structure-from-Motion reference
+    └── bundle_adjustment.ipynb            # g2o / bundle adjustment reference
+```
+
+---
+
+## Notebooks
+
+- `SLAM_pipeline_step_by_step.ipynb` — walks through the entire monocular SLAM pipeline step by step. Uses the [KITTI odometry dataset](https://www.cvlibs.net/datasets/kitti/eval_odometry.php) (grayscale, 22 GB).
+- `mapping.ipynb` — additional Structure-from-Motion reference ([source](https://github.com/SiddhantNadkarni/Parallel_SFM))
+- `bundle_adjustment.ipynb` — g2o and bundle adjustment walkthrough ([source](https://github.com/maxcrous/multiview_notebooks))
